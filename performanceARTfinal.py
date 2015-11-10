@@ -1,39 +1,89 @@
 import requests
 import json
 import re
+import csv
 
-perfArt = 'http://dbpedia.org/data/Performance_art.json'
-r = requests.get(perfArt)
+with open('ULAN performance artists.csv', 'r') as csvfile:
+	lines = csv.reader(csvfile)
 
-response = json.loads(r.text)
+	for a_line in lines:
 
-for entry in response:
-	entry = str(entry)
-	reg = re.sub('/resource/', '/data/', entry)
-	try:
-		s = requests.get(reg + ".json")
-		info = json.loads(s.text)
-	except:
-		pass
-	try:
-		for agent in info[entry]['http://www.w3.org/1999/02/22-rdf-syntax-ns#type']:
-			if "http://schema.org/Person" in agent['value']:
-				perfArtist = entry
-				perfArtist = str(perfArtist)
-				regex = re.sub('/resource/', '/data/', perfArtist)
+		ulanURI = a_line[0]
+
+		artistNAME = a_line[1]
+
+		#compile our pattern
+		p = re.compile('[0-9]{9}')
+
+
+		#search method
+		m= p.findall(ulanURI)
+
+	
+		for ulanID in m:
+			try:
+
+				r = requests.get('http://www.viaf.org/viaf/sourceID/JPG|' +ulanID)
+				
+				viafURI = requests.get(r.url)
+				
+				viafURIJSON = viafURI.url + "justlinks-json"
+				
+				v = requests.get(viafURIJSON)
+				
+				response = json.loads(v.text)
+			
 				try:
-					t = requests.get(regex + ".json")
-					artistInfo = json.loads(t.text)
+					for entry in response['Wikipedia']:
+
+						if "en.wikipedia" in entry:
+
+							wikipediaURL = entry
+
+
+							dbpediaURL = re.sub("en.wikipedia.org/wiki/","dbpedia.org/page/",wikipediaURL)
+							dbResource = re.sub('/page/','/resource/',dbpediaURL)
+
+							dbJSON = re.sub('/page/','/data/', dbpediaURL)
+
+							dbJSON = dbJSON + ".json"
+
+							q = requests.get(dbJSON)
+
+							jsonresponse = json.loads(q.text)
+
+							try:
+
+								for data in jsonresponse[dbResource]['http://dbpedia.org/ontology/influenced:']:
+									print (artistNAME + ";"+ "is influence of;" + data['value'])
+							except:
+								pass
+
+							try:
+
+								for data in jsonresponse[dbResource]['http://dbpedia.org/property/influenced']:
+									print (artistNAME + ";"+ "is influence of;" + data['value'])
+							except:
+								pass
+
+							try:
+
+								for data in jsonresponse[dbResource]['http://dbpedia.org/ontology/influencedBy']:
+									print (artistNAME + ";"+ "is influenced by;" + data['value'])
+							except:
+								pass
+							try:
+
+								for data in jsonresponse[dbResource]['http://dbpedia.org/property/influencedBy']:
+									print (artistNAME + ";"+ "is influenced by;" + data['value'])
+							except:
+								pass
 				except:
 					pass
-				try:
-					for data in artistInfo[perfArtist]:
-						if "influenced" in data:
-							print (perfArtist)
-				except:
-					pass
+			except:
+				pass
+				
 
-	except:
-		pass
+
 	
 
